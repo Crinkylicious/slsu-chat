@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>SLSU Lucena Campus Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+#chatView {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0; /* FIXES floating input */
+}
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        :root { --slsu-green: #006400; --slsu-gold: #FFD700; --slsu-light: #f0f7f0; --slsu-dark: #003300; }
+        body { background: linear-gradient(135deg, var(--slsu-green) 0%, var(--slsu-dark) 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 500px; background: rgba(255, 255, 255, 0.95); border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); overflow: hidden; display: flex; flex-direction: column; height: 90vh; }
+        .header { background: var(--slsu-green); color: white; padding: 20px; text-align: center; position: relative; border-bottom: 5px solid var(--slsu-gold); }
+        .logo-container { display: flex; justify-content: center; align-items: center; margin-bottom: 10px; }
+        .logo { width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 15px; border: 2px solid var(--slsu-gold); overflow: hidden; flex-shrink: 0; }
+        .logo i { font-size: 28px; color: var(--slsu-green); }
+        .header h1 { font-size: 1.5rem; margin-bottom: 5px; }
+        .header p { font-size: 0.9rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .online-indicator { display: inline-block; width: 10px; height: 10px; background: #4CAF50; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .user-count { position: absolute; top: 15px; right: 15px; background: var(--slsu-gold); color: var(--slsu-dark); border-radius: 15px; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; }
+
+        .chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-height: 0;
+    max-height: calc(100vh - 250px); /* prevents overflow */
+}
+
+        .message { max-width: 80%; padding: 12px 15px; border-radius: 18px; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .received { background: #e5e5ea; align-self: flex-start; border-bottom-left-radius: 5px; }
+        .sent { background: var(--slsu-green); color: white; align-self: flex-end; border-bottom-right-radius: 5px; }
+        .message-sender { font-size: 0.75rem; font-weight: bold; margin-bottom: 5px; opacity: 0.8; }
+
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; border-top: 1px solid #ddd; flex-shrink: 0; }
+        input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 14px; }
+        button { background: var(--slsu-green); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; transition: transform 0.2s; }
+        button:hover { transform: scale(1.1); }
+        button:active { transform: scale(0.95); }
+
+        .setup-panel { padding: 20px; text-align: center; }
+        .setup-panel h2 { margin-bottom: 15px; color: var(--slsu-green); }
+        .setup-panel p { margin-bottom: 15px; font-size: 0.9rem; }
+        .setup-panel input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #ccc; }
+        .setup-panel button { border-radius: 10px; padding: 12px 30px; width: auto; height: auto; }
+
+        .waiting-panel { padding: 40px 20px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .waiting-panel h2 { color: var(--slsu-green); margin-bottom: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--slsu-green); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .waiting-panel p { color: #666; font-size: 0.95rem; }
+
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4CAF50; color: white; padding: 12px 24px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .error { background: #f44336 !important; }
+        .connection-info { padding: 10px; text-align: center; font-size: 0.85rem; color: #666; background: #f9f9f9; border-top: 1px solid #ddd; }
+        
+        .chat-header { background: var(--slsu-green); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .chat-header-info { display: flex; flex-direction: column; }
+        .chat-header-label { opacity: 0.8; font-size: 0.8rem; }
+        .chat-header-name { font-size: 1.1rem; font-weight: bold; }
+        .skip-button { padding: 8px 15px; border-radius: 8px; background: rgba(255,255,255,0.2); font-size: 0.9rem; }
+        .skip-button:hover { background: rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="logo-container">
+            <div class="logo"><img id="logoImg" src="" alt="SLSU Logo" style="width: 100%; height: 100%; object-fit: contain;"></div>
+            <div>
+                <h1>SLSU Lucena Campus Chat</h1>
+                <p><span class="online-indicator"></span> <span id="connectionStatus">Connecting...</span></p>
+            </div>
+        </div>
+        <div class="user-count"><i class="fas fa-users"></i> <span id="userCount">0</span> Online</div>
+    </div>
+
+    <!-- Setup Panel -->
+    <div id="setupPanel" class="setup-panel">
+        <h2>Join Campus Chat</h2>
+        <p>Connecting to: <strong id="serverDisplay">Loading...</strong></p>
+        <p id="connectionDebug" style="font-size:0.8rem; color:#666;"></p>
+        <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+        <button onclick="joinChat()">
+            <i class="fas fa-sign-in-alt"></i> Join Chat
+        </button>
+    </div>
+
+    <!-- Waiting for Match Panel -->
+    <div id="waitingPanel" class="waiting-panel" style="display:none;">
+        <h2>Finding Someone to Chat...</h2>
+        <div class="spinner"></div>
+        <p id="waitingText">Connecting you with another user...</p>
+        <p style="font-size: 0.85rem; color: #999; margin-top: 20px;">You'll be automatically paired with the first available user</p>
+    </div>
+
+    <!-- Chat View -->
+  <div id="chatView" style="display:none; flex-direction:column; flex:1; min-height:0;">
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <div class="chat-header-label">Chatting with</div>
+                <div class="chat-header-name" id="chatWithName">User</div>
+            </div>
+            <button onclick="skipUser()" class="skip-button">
+                <i class="fas fa-forward"></i> Skip
+            </button>
+        </div>
+
+        <div class="chat-container" id="chatContainer"></div>
+
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type a message..." maxlength="500">
+            <button id="sendButton"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div class="connection-info">
+        Username: <span id="deviceId">-</span> | Server: <span id="serverInfo">-</span>
+    </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+    // Configure server URL
+    let SERVER_IP = location.hostname;
+    if (!SERVER_IP || SERVER_IP.trim() === "" || SERVER_IP === "localhost" || SERVER_IP === "127.0.0.1") {
+        SERVER_IP = "192.168.1.2"; // default, change if needed
+    }
+    const SERVER_PORT = "8080";
+    const WS_URL = `ws://${SERVER_IP}:${SERVER_PORT}`;
+
+    // UI refs
+    const setupPanel = document.getElementById("setupPanel");
+    const waitingPanel = document.getElementById("waitingPanel");
+    const chatView = document.getElementById("chatView");
+    const connectionStatus = document.getElementById("connectionStatus");
+    const connectionDebug = document.getElementById("connectionDebug");
+    const serverDisplay = document.getElementById("serverDisplay");
+    const serverInfo = document.getElementById("serverInfo");
+    const userCount = document.getElementById("userCount");
+    const deviceId = document.getElementById("deviceId");
+    const chatWithName = document.getElementById("chatWithName");
+    const chatContainer = document.getElementById("chatContainer");
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    const notification = document.getElementById("notification");
+    const waitingText = document.getElementById("waitingText");
+
+    let ws = null;
+    let username = "";
+    let currentPartner = null;
+    let isConnected = false;
+
+    // Setup UI values
+    document.getElementById("serverDisplay").textContent = WS_URL;
+    document.getElementById("serverInfo").textContent = SERVER_IP + ":" + SERVER_PORT;
+    document.getElementById("logoImg").src = ""; // optional: path to your logo if you have one
+
+    // WebSocket connect
+    function connectWebSocket() {
+        try {
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                isConnected = true;
+                connectionStatus.textContent = "Connected";
+                connectionDebug.textContent = "✅ Connection successful!";
+                showNotification("Connected to server", false);
+            };
+
+            ws.onclose = () => {
+                isConnected = false;
+                connectionStatus.textContent = "Disconnected";
+                connectionDebug.textContent = "⚠️ Disconnected from server";
+                showNotification("Disconnected from server", true);
+                // keep UI in current state (user will need to refresh or rejoin)
+            };
+
+            ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+                showNotification("Connection error. Check IP and server.", true);
+                connectionDebug.textContent = "❌ Connection error. Check server IP and firewall.";
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    handleMessage(d);
+                } catch (err) {
+                    console.error("Error parsing message:", err);
+                }
+            };
+        } catch (err) {
+            console.error("Failed to create WebSocket:", err);
+            showNotification("Failed to connect: " + err.message, true);
+        }
+    }
+
+    // Initial connect
+    connectWebSocket();
+
+    // Join chat button
+    function joinChat() {
+        const name = document.getElementById("usernameInput").value.trim();
+        if (!name) {
+            showNotification("Please enter a username", true);
+            return;
+        }
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+            showNotification("Not connected to server yet. Please wait...", true);
+            return;
+        }
+        username = name;
+        deviceId.textContent = username;
+        setupPanel.style.display = "none";
+        waitingPanel.style.display = "flex";
+        waitingText.textContent = "Searching for a partner...";
+
+        ws.send(JSON.stringify({ type: "register", username }));
+    }
+
+    function handleMessage(d) {
+        switch (d.type) {
+            case "registered":
+                // Received after register - but pairing may come separately as 'paired'
+                userCount.textContent = d.totalUsers;
+                showNotification(`Welcome, ${d.username}!`, false);
+                break;
+
+            case "user_list":
+                // server broadcasts online user list occasionally
+                userCount.textContent = d.users ? d.users.length : (d.totalUsers || 0);
+                break;
+
+            case "user_joined":
+                userCount.textContent = d.totalUsers;
+                showNotification(`${d.username} joined.`, false);
+                break;
+
+            case "user_left":
+                userCount.textContent = d.totalUsers;
+                showNotification(`${d.username} left.`, false);
+                // If partner left, server will also send unpaired notification or requeue
+                break;
+
+            case "paired":
+                // Server paired us with partner
+                currentPartner = d.partner;
+                chatWithName.textContent = currentPartner;
+                waitingPanel.style.display = "none";
+                chatView.style.display = "flex";
+                chatContainer.innerHTML = "";
+                // Request conversation history
+                ws.send(JSON.stringify({ type: "get_conversation", with: currentPartner }));
+                showNotification(`Paired with ${currentPartner}`, false);
+                break;
+
+            case "unpaired":
+                // Server wants us to unpair (partner left or skip)
+                currentPartner = null;
+                chatWithName.textContent = "—";
+                chatView.style.display = "none";
+                waitingPanel.style.display = "flex";
+                showNotification("Returned to waiting queue", false);
+                break;
+
+            case "direct_message":
+                // Incoming message from partner
+                addMessage(d.from, d.message, false);
+                break;
+
+            case "message_sent":
+                addMessage(username, d.message, true);
+                break;
+
+            case "conversation_history":
+                loadHistory(d.history || []);
+                break;
+
+            case "info":
+                showNotification(d.message, false);
+                break;
+
+            case "error":
+                showNotification(d.message || "Server error", true);
+                break;
+
+            default:
+                console.log("Unhandled message:", d);
+                break;
+        }
+    }
+
+    function skipUser() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            showNotification("Not connected", true);
+            return;
+        }
+        // tell server to skip; server will unpair and requeue both
+        ws.send(JSON.stringify({ type: "skip" }));
+        // locally switch to waiting UI — server will also send 'unpaired'
+        currentPartner = null;
+        chatView.style.display = "none";
+        waitingPanel.style.display = "flex";
+        showNotification("Skipping conversation...", false);
+    }
+
+    function sendMessage() {
+        const msg = messageInput.value.trim();
+        if (!msg || !currentPartner) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) { showNotification("Connection lost", true); return; }
+
+        ws.send(JSON.stringify({
+            type: "direct_message",
+            recipient: currentPartner,
+            message: msg
+        }));
+        messageInput.value = "";
+    }
+
+    sendButton.onclick = sendMessage;
+    messageInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+    function addMessage(sender, text, isSent) {
+        const div = document.createElement("div");
+        div.className = "message " + (isSent ? "sent" : "received");
+        div.innerHTML = `<div class="message-sender">${sanitize(sender)}</div>${sanitize(text)}`;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function loadHistory(history) {
+        chatContainer.innerHTML = "";
+        if (!history || history.length === 0) {
+            const d = document.createElement("div");
+            d.style.textAlign = "center";
+            d.style.padding = "40px";
+            d.style.color = "#999";
+            d.innerHTML = "<i class='fas fa-comments' style='font-size:3rem; margin-bottom:10px;'></i><br>No messages yet. Start the conversation!";
+            chatContainer.appendChild(d);
+            return;
+        }
+        history.forEach(m => addMessage(m.sender, m.message, m.sender === username));
+    }
+
+    function showNotification(msg, isError = false) {
+        notification.textContent = msg;
+        notification.className = "notification" + (isError ? " error" : "");
+        notification.style.opacity = 1;
+        setTimeout(() => (notification.style.opacity = 0), 3000);
+    }
+
+    function sanitize(text) {
+        const d = document.createElement("div");
+        d.textContent = text;
+        return d.innerHTML;
+    }
+</script>
+
+</body>
+</html>
